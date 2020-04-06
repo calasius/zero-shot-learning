@@ -192,7 +192,7 @@ def train_model(device, label):
                         
                 acc = balanced_accuracy_score(y_true, y_pred)
                 
-                if acc > 0.8:
+                if acc > 0.75:
                     print('saving model')
                     model.save_model('models/%s-%.2f' % (label, acc))
 
@@ -203,8 +203,8 @@ def train_model(device, label):
             model.train_mode()
     
     
-device = 'cuda:1'
+device = 'cuda:0'
 
-label = 'beach'
+label = 'natural_view'
 
 train_model(device, label)

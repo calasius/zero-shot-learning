@@ -165,7 +165,7 @@ def get_zeroshot_dataset(train, samples_per_category = 1500):
     tags = pd.read_pickle('tags_onehot_corrected.pkl')
     
 
-    categories = list(category_to_word.keys() - set(test_categories))
+    categories = list(category_to_word.keys())
     categories.sort()
         
     data = tags[categories]
