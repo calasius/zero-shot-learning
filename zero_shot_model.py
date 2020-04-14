@@ -26,11 +26,12 @@ K_SIGMOIDE_CROP_MASK = 10
 IMAGE_SIZE = 448
 CROP_ENLARGED_SIZE = 224
 IMAGE_EMBEDDING_SIZE = 512
-SEMANTIC_EMBEDDING_SIZE = 300
+SEMANTIC_EMBEDDING_SIZE = 102
 SIGMA = 3
 SIGMA_MATRIX = (torch.eye(2) * SIGMA)
 REDUCTION_SIZE = 64
 DEFAULT_BOX_SIZE = 200
+AMOUNT_OF_CLASSES = 17
 import os
 
 
@@ -38,16 +39,20 @@ class ZeroshotModel(nn.Module):
     
     @staticmethod
     def load_model(device, name):
-        model = AttentionModel(device)
+        model = ZeroshotModel(device)
         
         for k in model.keys:
             model.feature_map_attention_network[k].load_state_dict(torch.load(name + '/' + 'feature_map_attention_network_' + k))
             model.crop_networks[k].load_state_dict(torch.load(name + '/' + 'crop_networks_' + k))
-            model.projection_network[k].load_state_dict(torch.load(name + '/' + 'dimension_reduction_networks_' +k))
+            model.projection_network[k].load_state_dict(torch.load(name + '/' + 'projection_network_' +k))
+        
+        #model.class_centers = torch.load(name + '/class_centers')
         
         return model
     
     def __init__(self, device, load_pretrained_networks = False):
+        
+        print('Agrego Centers')
         
         super().__init__()
         
@@ -62,6 +67,8 @@ class ZeroshotModel(nn.Module):
         self.crop_networks = self.build_crop_network()
         
         self.projection_network = self.build_projection_network()
+        
+        self.class_centers = torch.randn(AMOUNT_OF_CLASSES, SEMANTIC_EMBEDDING_SIZE, device = self.device, requires_grad=True)
         
         self.keys  = ['att1', 'att2', 'att3', 'att4']
         
@@ -80,20 +87,22 @@ class ZeroshotModel(nn.Module):
             torch.save(self.feature_map_attention_network[k].state_dict(), name + '/' + 'feature_map_attention_network_' + k)
             torch.save(self.crop_networks[k].state_dict(), name + '/' + 'crop_networks_' + k)
             torch.save(self.projection_network[k].state_dict(), name + '/' + 'projection_network_' +k)
+        torch.save(self.class_centers, name + '/class_centers')
         
     def eval_mode(self):
         
         for k in self.feature_map_attention_network:
             self.feature_map_attention_network[k].eval()
             self.crop_networks[k].eval()
-            self.dimension_reduction_networks[k].eval()
+            self.projection_network[k].eval()
         
     def train_mode(self):
         
         for k in self.feature_map_attention_network:
             self.feature_map_attention_network[k].train()
             self.crop_networks[k].train()
-            self.dimension_reduction_networks[k].train()
+            self.projection_network[k].train()
+            
         
     def build_projection_network(self):
         
@@ -314,11 +323,16 @@ class ZeroshotModel(nn.Module):
             
     def get_model_parameters(self):
         parameters = list()
+        
         for k in self.feature_map_attention_network:
             parameters += list(self.feature_map_attention_network[k].parameters())
             parameters += list(self.crop_networks[k].parameters())
             parameters += list(self.projection_network[k].parameters())
             
+        print('is leaf = %s' % self.class_centers.is_leaf)
+            
+        parameters.append(self.class_centers)
+        
         return parameters
     
     def get_crops_forward(self, x):
@@ -364,7 +378,6 @@ class ZeroshotModel(nn.Module):
                 att_boxes[k] = boxes
                 
             return attention_maps, attention_crops, ideal_attention_maps, max_centers, att_boxes
-            
             
     
     def forward(self, x, eval_mode=False):
@@ -425,4 +438,4 @@ class ZeroshotModel(nn.Module):
             
             i = i + 1
             
-        return projections
+        return projections, multi_attention_loss, self.class_centers

@@ -1,0 +1,4 @@
+._images
+.ipynb_checkpoints/
+__pycache__/
+untracked/

@@ -13,7 +13,7 @@ from torchnlp.word_to_vector import FastText
 
 RANDOM_SEED = 100
 
-EMBEDDING_SIZE = 300
+EMBEDDING_SIZE = 512
 
 np.random.seed(RANDOM_SEED)
 
@@ -23,7 +23,7 @@ category_to_word = {'ballroom':'ballroom', 'bar_lounge':'bar', 'bathroom':'bathr
                    'restaurant':'restaurant', 'spa':'spa'}
 
 
-test_categories = ['kitchen', 'restaurant', 'hotel_front', 'natural_view']
+test_categories = ['kitchen', 'restaurant', 'health_club', 'natural_view']
 
 word_embedding = FastText(cache='/data/word_embeddings/')
 
@@ -32,18 +32,24 @@ category_embeddings = {}
 for k in category_to_word.keys():
     category_embeddings[k] = word_embedding[category_to_word[k]]
     
+    
+semantic_embeddings = pd.read_pickle('sun_attributes.pkl')
+
+#semantic_embeddings.sort(by='Class')
+    
 def get_category_embedding_matrix():
-    categories = list(category_embeddings.keys())
-    categories.sort()
-    
-    matrix = torch.empty(len(categories), EMBEDDING_SIZE)
-    
-    i = 0
-    for k in categories:
-        matrix[i] = category_embeddings[k]
-        i = i + 1
-        
-    return matrix.T
+#    categories = list(category_embeddings.keys())
+#    categories.sort()
+#    
+#    matrix = torch.empty(len(categories), EMBEDDING_SIZE)
+#    
+#    i = 0
+#    for k in categories:
+#        matrix[i] = category_embeddings[k]
+#        i = i + 1
+#        
+#    return matrix.T
+    return torch.from_numpy(semantic_embeddings.iloc[:,:-1].values).float().T
     
     
 
@@ -54,7 +60,7 @@ image_transformations = transforms.Compose([transforms.Resize((450,450)), transf
 
 class MultitagDataset(Dataset):
     
-    def __init__(self, image_root_path, label, tags, transform = image_transformations_with_normalization):
+    def __init__(self, image_root_path, tags, label = None, transform = image_transformations_with_normalization):
         self.tags = tags
         self.image_root_path = image_root_path
         self.transform = transform
@@ -66,7 +72,10 @@ class MultitagDataset(Dataset):
     
     def __getitem__(self, idx):
         try:
-            label = np.array(self.tags.iloc[idx][self.label])
+            if self.label is None:
+                label = self.tags.iloc[:,:-1].values
+            else:
+                label = np.array(self.tags.iloc[idx][self.label])
             file = self.image_root_path + self.tags.iloc[idx]['file']
             img = Image.open(file)
             images = self.transform(img)
@@ -164,24 +173,27 @@ def get_data_multilabel():
 def get_zeroshot_dataset(train, samples_per_category = 1500):
     tags = pd.read_pickle('tags_onehot_corrected.pkl')
     
+    files = pd.read_pickle('good_files.pkl')[0].values
+    
+    tags = tags[tags.file.isin(files)]
+    
 
-    categories = list(category_to_word.keys())
+    categories = list(set(semantic_embeddings.Class.values) - set(test_categories))
     categories.sort()
-        
-    data = tags[categories]
-    data['file'] = tags['file']
+    
+    print(categories)
         
     if train:
         
         indices = []
-        multitag_indices = []
-        for i in range(data.shape[0]):
-            if np.sum(data.iloc[i, :-1].values) == 1:
+        for i in range(tags.shape[0]):
+            if np.sum(tags.iloc[i, :-1].values) == 1:
                 indices.append(i)
-            else:
-                multitag_indices.append(i)
-        
-        data = data.iloc[indices]
+
+        tags = tags.iloc[indices]
+
+        data = tags[categories]
+        data['file'] = tags['file']
         
         dataset = []
         
@@ -194,7 +206,8 @@ def get_zeroshot_dataset(train, samples_per_category = 1500):
         
         return shuffle(dataset)
     else:
-            
+        data = tags[categories]
+        data['file'] = tags['file']
         indices = []
         for i in range(data.shape[0]):
             if np.sum(data.iloc[i, :-1].values) > 1:
