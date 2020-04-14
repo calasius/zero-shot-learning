@@ -75,8 +75,8 @@ class AttentionModel(nn.Module):
         
         if load_pretrained_networks:
             for k in self.keys:
-                crop_network = torch.load('crop_network_%s' % k)
-                feature_map_attention_network = torch.load('feature_map_attention_network_%s' % k)
+                crop_network = torch.load('pretrained/crop_network_%s' % k)
+                feature_map_attention_network = torch.load('pretrained/feature_map_attention_network_%s' % k)
                 self.crop_networks[k].load_state_dict(crop_network)
                 self.feature_map_attention_network[k].load_state_dict(feature_map_attention_network)
                 
