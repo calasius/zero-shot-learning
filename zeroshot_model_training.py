@@ -84,8 +84,6 @@ for epoch in range(epochs):
         
         loss.backward()
         
-        print('norma grad class_centers = %s' % model.class_centers.grad.norm(p=2))
-        
         print('loss = %s' % loss.item())
     
         optimizer.step()
@@ -124,7 +122,7 @@ for epoch in range(epochs):
             
         model.train_mode()
         
-        if acc > .4:
+        if acc > .9:
             print('saving model')
             model.save_model('models/zeroshot_model_centers_08_sun_attributes_%.2f' % acc)
 
