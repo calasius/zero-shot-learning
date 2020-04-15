@@ -33,7 +33,7 @@ for k in category_to_word.keys():
     category_embeddings[k] = word_embedding[category_to_word[k]]
     
     
-semantic_embeddings = pd.read_pickle('sun_attributes.pkl')
+semantic_embeddings = pd.read_pickle('semantic_embeddings.pkl')
 
 #semantic_embeddings.sort(by='Class')
     
@@ -49,7 +49,7 @@ def get_category_embedding_matrix():
 #        i = i + 1
 #        
 #    return matrix.T
-    return torch.from_numpy(semantic_embeddings.iloc[:,:-1].values).float().T
+    return torch.from_numpy(semantic_embeddings.iloc[:,1:].values).float().T
     
     
 
